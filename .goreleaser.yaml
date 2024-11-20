@@ -1,0 +1,76 @@
+version: 2
+# set environment variables to be used in the build process
+env:
+    # enable GO111Modules if you are using Go1.11 modules in your project for dependency management
+    - GO111MODULE=on
+    # Disable CGO - We will go more into this later
+    - CGO_ENABLED=0
+# before are hooks that will be run before any builds are done, so good to put install scripts and stuff that your builds need here
+before:
+    hooks:
+        # Remove unused packaged from the build process
+        - go mod tidy
+        # You may remove this if you don't use go modules - Downloads all modules specified in go.mod
+        - go mod download
+# buids. This is very basic, but there is a ton of customization you can do here.
+# I would check out https://goreleaser.com/customization/ to learn more.
+builds:
+  - <<: &build_defaults
+      binary: bin/name
+      main: ./main.go
+    id: macos
+    goos: [darwin]
+    goarch: [amd64]
+  - <<: *build_defaults
+    id: linux
+    goos: [linux]
+    goarch: [386, arm, amd64, arm64]
+    env:
+      - CGO_ENABLED=0
+  - <<: *build_defaults
+    id: windows
+    goos: [windows]
+    goarch: [386, amd64, arm64]
+
+archives:
+  - id: nix
+    builds: [macos, linux]
+    <<: &archive_defaults
+      name_template: 'name_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    wrap_in_directory: true
+    format: tar.gz
+    files:
+      - LICENSE
+  - id: windows
+    builds: [windows]
+    <<: *archive_defaults
+    wrap_in_directory: false
+    format: zip
+    files:
+      - LICENSE
+
+brews:
+  - name: Password CLI
+    homepage: https://github.com/Anirudh12345678/PwdCLI
+    repository:
+      owner: Anirudh12345678
+      name: homebrew-PwdCLI
+    commit_author:
+      name: Anirudh12345678
+      email: anisiva2005@gmail.com
+# The generated checksum after your build. No need to touch this unless you know what you are doing.
+checksum:
+    name_template: 'checksums.txt'
+# The name of the reason snapshot
+snapshot:
+    name_template: '{{ .Tag }}-next'
+# GoReleaser will generate you a changelog depending on the commits that you have created.
+changelog:
+    sort: asc
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
+            - 'README'
+            - Merge pull request
+            - Merge branch
